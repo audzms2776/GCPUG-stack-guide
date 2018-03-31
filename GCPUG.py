@@ -1,21 +1,32 @@
-from flask import Flask
+rom flask import Flask
 from flask import request
 from flask import jsonify
+from flask_cors import CORS
+from flask import render_template
 from google.cloud import bigquery
+import re
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
+
+@app.route('/demo/')
+def hello():
+    return render_template('demo.html')
+
 
 def query_result_parse(results):
     result_arr = []
 
     for row in results:
+       cleanr =re.compile('<.*?>')
+       cleantext = re.sub(cleanr, '', row.body)
        result_arr.append(
            {
                'id': row.id,
                'tags': row.tags,
                'score': row.score,
                'title': row.title,
-               'body': row.body
+               'body': cleantext[:80]
            }
        )
     
@@ -23,7 +34,6 @@ def query_result_parse(results):
 
 
 def make_query(tag_list):
-
     main_query = """
     SELECT
         q.id,
@@ -39,7 +49,6 @@ def make_query(tag_list):
         q.id=a.parent_id
     AND
     """
-
     if len(tag_list) == 4:
         main_query += """
         q.tags LIKE '%{}%' and q.tags LIKE '%{}%' and a.body LIKE '%{}%' and a.body LIKE '%{}%'
@@ -55,17 +64,20 @@ def make_query(tag_list):
     LIMIT
         5
     """
-
     return main_query
-
-
 def query_process(request):
     tag_list = dict(request.args)['tag']
     client = bigquery.Client()
     query_job = client.query(make_query(tag_list))
     results = query_job.result()  # Waits for job to complete.
-
     return jsonify(query_result_parse(results))
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+    return response
 
 @app.route('/setting')
 def tag():
@@ -74,8 +86,9 @@ def tag():
 
 @app.route('/realtime')
 def real_time():
+    print('realtime api!!')
     return query_process(request) 
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0', port=5000)
