@@ -46,7 +46,7 @@ def make_query(tag_list):
         """.format(tag_list[0], tag_list[1], tag_list[2], tag_list[3])
     else:
         main_query += """
-        q.tags LIKE '%{}%' and a.body LIKE '%{]%'
+        q.tags LIKE '%{}%' and a.body LIKE '%{}%'
         """.format(tag_list[0], tag_list[1])
     
     main_query += """
